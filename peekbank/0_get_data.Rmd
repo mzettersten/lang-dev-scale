@@ -1,0 +1,147 @@
+---
+title: "Data loading"
+author: "Peekbank team"
+date: "2/27/26"
+output: 
+  html_document:
+    toc: true
+    toc_depth: 2
+    toc_float: true
+    code_folding: hide
+
+---
+
+
+```{r}
+library(here)
+library(peekbankr)
+source(here("helper","common.R"))
+FIRST_TIME <- TRUE
+```
+
+
+## Get data
+
+```{r, eval=FIRST_TIME}
+con <- connect_to_peekbank(db_version = "2026.1")
+all_aoi_timepoints <- get_aoi_timepoints(connection = con, rle=FALSE)
+saveRDS(all_aoi_timepoints, here("cached_intermediates","all_aoi.rds"))
+```
+
+
+```{r, eval=FIRST_TIME}
+# reload connection in case it is stale
+con <- connect_to_peekbank(db_version = "2026.1")
+all_stimuli <- collect(get_stimuli(connection = con))
+all_administrations <- collect(get_administrations(connection = con))
+all_subjects <- unpack_aux_data(collect(get_subjects(connection = con)))
+all_trial_types <- collect(get_trial_types(connection = con))
+all_trials <- unpack_aux_data(collect(get_trials(connection = con)))
+all_datasets <- get_datasets(connection=con) %>% collect()
+```
+
+```{r}
+#store some dataset facts
+peekbank_overall_properties <- tibble(
+  n_subjects = unique(all_subjects$subject_id) %>% length(),
+  n_datasets = unique(all_datasets$dataset_id) %>% length(),
+  n_trials = unique(all_trials$trial_id) %>% length(),
+  n_admins = unique(all_administrations$administration_id) %>% length(),
+)
+saveRDS(peekbank_overall_properties, here("cached_intermediates","peekbank_overall_properties.rds"))
+```
+
+Now do the joins. 
+
+Filter criteria:
+* no restriction on language
+* all trials, not just vanilla
+* age <=60 months inclusive 
+
+
+```{r, eval=FIRST_TIME}
+
+all_aoi_timepoints <- readRDS(here("cached_intermediates","all_aoi.rds"))
+
+all_administrations <- all_administrations |> select(administration_id, age, dataset_id, subject_id, dataset_name) |> filter(age <= 60)
+
+all_trials <- all_trials |> select(trial_id, trial_order, trial_type_id, dataset_id, dataset_name)
+
+all_trial_types <- all_trial_types |> select(trial_type_id, dataset_id, dataset_name, distractor_id, target_id, target_side, vanilla_trial, full_phrase_language)
+
+all_stimuli <- all_stimuli |> select(stimulus_id, stimulus_novelty, english_stimulus_label, dataset_id) |> mutate(english_stimulus_label=str_to_lower(english_stimulus_label))
+
+aoi_data_joined <- all_aoi_timepoints |>
+  inner_join(all_administrations) |> 
+  inner_join(all_trials) |>
+  inner_join(all_trial_types) |>
+  mutate(stimulus_id = target_id) |>
+  left_join(all_stimuli) |>
+  select(dataset_name, subject_id, administration_id, trial_id, trial_order, dataset_id, 
+         stimulus_id, distractor_id, t_norm, age, aoi, english_stimulus_label, 
+         stimulus_novelty, target_side, vanilla_trial, full_phrase_language) %>%
+  rename(target_label = english_stimulus_label, 
+         target_id = stimulus_id) %>%
+  left_join(all_stimuli %>%
+              select(stimulus_id, dataset_id, 
+                     stimulus_novelty, english_stimulus_label) %>%
+              rename(distractor_id = stimulus_id, 
+                     distractor_novelty = stimulus_novelty,
+                     distractor_label = english_stimulus_label)) #|>
+  #select(dataset_name, subject_id, administration_id, trial_id, trial_order,dataset_id, target_id, distractor_id, t_norm, age, aoi, target_label,distractor_label, target_side, full_phrase_language, stimulus_novelty, distractor_novelty, vanilla_trial)
+saveRDS(aoi_data_joined, file= here("cached_intermediates","0_aoi_data_joined.Rds"))
+```
+
+Check on number of datasets. 
+
+```{r}
+aoi_data_joined <- readRDS(here("cached_intermediates", "0_aoi_data_joined.Rds"))
+length(unique(aoi_data_joined$dataset_name))
+unique(aoi_data_joined$dataset_name)
+```
+
+## Some quick descriptives on data
+
+```{r}
+# how much do we expect from each
+aoi_data_joined |> distinct(dataset_name, trial_id) |> group_by(dataset_name) |> tally()
+```
+
+
+Age distribution. 
+
+```{r}
+ggplot(aoi_data_joined, aes(x = age, fill = dataset_name)) + 
+  geom_histogram() +
+  theme(legend.position="none")
+```
+
+Age distribution split by stim novelty
+
+```{r}
+ggplot(aoi_data_joined, aes(x = age, fill = dataset_name)) + 
+  geom_histogram() +
+  theme(legend.position="none")+
+  facet_wrap(~stimulus_novelty)
+```
+
+# Item cleanup
+
+TODO: Any further checks/cleanup of items?
+
+# Timecourse cleanup
+
+Note - there is a bit of a ramp down in terms of amount of data for many datasets towards the end. 
+We clip at +/- 4000 because there is little data outside these windows. 
+
+
+```{r, eval=F}
+d_aoi <- aoi_data_joined |>
+  filter(t_norm >= -4000, t_norm <= 4000) |> 
+    mutate(correct = case_when(
+      aoi == "target"~ 1, 
+      aoi == "distractor"~ 0,
+      T ~ NA))
+
+saveRDS(d_aoi, file = here("cached_intermediates","0_d_aoi.rds"))
+```
