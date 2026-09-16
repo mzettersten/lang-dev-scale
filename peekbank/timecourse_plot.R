@@ -1,4 +1,6 @@
 library(cowplot)
+library(here)
+library(tidyverse)
 
 d_aoi <- readRDS(here("cached_intermediates", "0_d_aoi.rds"))
 
@@ -76,7 +78,7 @@ d_timecourse_by_age_novelty_overall |>
   theme_cowplot()+
   facet_wrap(~age_bin)+
   theme(legend.position=c(0.1,0.8))
-ggsave(here("figures","timecourse_by_age_novelty_overall.png"), bg="white",width=8, height=6)
+ggsave(here("figures","timecourse_by_age_novelty_overall.png"), bg="white",width=10, height=6)
 
 d_timecourse_across_dataset_by_age_novelty_overall |> 
   filter(age_bin!="<12"&age_bin!=">36") |> 

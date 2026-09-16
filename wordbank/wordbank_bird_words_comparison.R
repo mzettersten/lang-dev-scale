@@ -96,12 +96,20 @@ ggplot(filter(bird_crosslanguage_items_ws,age<=30&age>=18),aes(x = age, y = prop
   geom_point() +
   geom_smooth(method = "loess", se = FALSE) +
   facet_wrap(~language) +
-  labs(x = "Age (months)", y = "Proportion of children producing item") +
+  labs(x = "Age (months)", y = "Proportion of children producing word") +
   theme_bw()+
   scale_x_continuous(breaks = seq(18, 30, by = 2)) +
-  scale_color_brewer(palette="Paired")+
+  scale_color_brewer(name="English Lemma",palette="Paired")+
   #place legend on bottom
-  theme(legend.position = "bottom")
+  #make legend wider
+  theme(legend.position = "bottom", legend.box = "horizontal")+
+  guides(color = guide_legend(nrow = 2)) +
+  #make facet names larger
+  theme(strip.text = element_text(size = 16))+
+  #make axis label and text larger
+  theme(axis.title = element_text(size = 16), axis.text = element_text(size = 12))+
+  #make legend text larger
+  theme(legend.text = element_text(size = 14),legend.title = element_text(size=16))
 
 #save
 ggsave(here("figures","bird_crosslanguage_items_ws.png"), width = 10, height = 6)
