@@ -77,7 +77,9 @@ d_timecourse_by_age_novelty_overall |>
   scale_fill_manual(name="Stimulus Novelty",values=c("#5D3A9B","#E66100"))+
   theme_cowplot()+
   facet_wrap(~age_bin)+
-  theme(legend.position=c(0.1,0.8))
+  theme(legend.position=c(0.1,0.85))+
+  #increase facet text size
+  theme(strip.text = element_text(size=16,face="bold"),axis.text = element_text(size=14),axis.title=element_text(size=18,face="bold"),legend.text=element_text(size=16),legend.title=element_text(size=18,face="bold"))
 ggsave(here("figures","timecourse_by_age_novelty_overall.png"), bg="white",width=10, height=6)
 
 d_timecourse_across_dataset_by_age_novelty_overall |> 
