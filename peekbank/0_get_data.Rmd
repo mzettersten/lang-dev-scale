@@ -125,10 +125,6 @@ ggplot(aoi_data_joined, aes(x = age, fill = dataset_name)) +
   facet_wrap(~stimulus_novelty)
 ```
 
-# Item cleanup
-
-TODO: Any further checks/cleanup of items?
-
 # Timecourse cleanup
 
 Note - there is a bit of a ramp down in terms of amount of data for many datasets towards the end. 

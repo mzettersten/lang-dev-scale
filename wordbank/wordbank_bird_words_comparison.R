@@ -33,23 +33,8 @@ english_bird_items <- c(
   "turkey"
 )
 
-english_items %>%
-  filter(item_definition %in% english_bird_items) %>%
-  select(item_definition,uni_lemma) %>%
-  distinct()
-
-#get german items based on uni lemmas of english items
-german_bird_items <- german_items %>%
-  filter(uni_lemma %in% english_bird_items) %>%
-  select(item_definition,uni_lemma) %>%
-  distinct()
-
-#items that are in English and German
-intersection_bird_items <- german_bird_items %>%
-  #select and extract uni lemma items
-  pull(uni_lemma)
-
 #create combined data
+#also explored adding a few other languages here
 bird_crosslanguage_items_ws <- english_items %>%
   mutate(language = "English") %>%
   bind_rows(
@@ -70,7 +55,7 @@ bird_crosslanguage_items_ws <- english_items %>%
   #   french_items %>%
   #     mutate(language = "French")
   # ) %>%
-  #Mandarin
+  Mandarin
   bind_rows(
     mandarin_items %>%
       mutate(language = "Mandarin")

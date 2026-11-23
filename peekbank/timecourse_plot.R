@@ -12,8 +12,6 @@ d_timecourse_by_dataset_age_subj_novelty <- d_aoi |>
     age_bin = cut(age, breaks = c(0,12,15,18,21,24,30,36,60), 
                   labels = c("<12", "12-15","15-18","18-21","21-24", "24-30","30-36", ">36"))
   ) |>
-  #downsample t_norm to 50ms bins
-  #mutate(t_norm_downsampled = round(t_norm/50)*50) |>
   group_by(dataset_name,dataset_id,subject_id,age_bin,stimulus_novelty,t_norm) |> 
   #calculate proportion time spent looking at target
   summarize(
@@ -59,7 +57,6 @@ d_timecourse_by_age_novelty_overall <- d_timecourse_by_dataset_age_subj_novelty 
   ) |> 
   rename(accuracy=proportion_target_looking)
 
-
 #not representing dataset structure
 d_timecourse_by_age_novelty_overall |> 
   filter(age_bin!="<12"&age_bin!=">36") |> 
@@ -82,18 +79,56 @@ d_timecourse_by_age_novelty_overall |>
   theme(strip.text = element_text(size=16,face="bold"),axis.text = element_text(size=14),axis.title=element_text(size=18,face="bold"),legend.text=element_text(size=16),legend.title=element_text(size=18,face="bold"))
 ggsave(here("figures","timecourse_by_age_novelty_overall.png"), bg="white",width=10, height=6)
 
-d_timecourse_across_dataset_by_age_novelty_overall |> 
-  filter(age_bin!="<12"&age_bin!=">36") |> 
-  filter(t_norm>-500) |> 
-  ggplot(aes(x=t_norm, y=accuracy, group=stimulus_novelty, color=stimulus_novelty)) +
-  geom_smooth(stat="identity", aes(y=accuracy,ymin=accuracy-sem, ymax=accuracy+sem,fill=stimulus_novelty))+
-  geom_hline(yintercept=0.5, linetype="dashed")+
-  geom_vline(xintercept=0, linetype="solid")+
-  scale_y_continuous(breaks=seq(0.4,1,0.1),limits=c(0.4,1))+
-  xlab("Time from trial onset (ms)")+
-  ylab("Proportion Target Looking")+
-  scale_color_viridis_d(name="Stimulus Novelty")+
-  scale_fill_viridis_d(name="Stimulus Novelty")+
-  theme_cowplot()+
-  facet_wrap(~age_bin)
+
+#BONUS: overview plot of datasets in Peekbank
+aoi_data_joined <- d_aoi
+means_items <- aoi_data_joined |>
+  #left_join(dataset_name_mapping) |>
+  filter(age <= 60) |>
+  group_by(t_norm, dataset_name, target_label) |>
+  summarise(n = sum(aoi %in% c("target","distractor"), na.rm = TRUE), 
+            p = sum(aoi == "target", na.rm = TRUE),
+            prop_looking = p / n#, 
+            #ci_lower = binom::binom.confint(p, n, method = "bayes")$lower,
+            #ci_upper = binom::binom.confint(p, n, method = "bayes")$upper
+            ) 
+
+average_across_items <- means_items |>
+  group_by(t_norm, dataset_name) |>
+  summarize(
+    N=n(),
+    avg_prop_looking=mean(prop_looking,na.rm=T),
+    sd = sd(prop_looking,na.rm=T),
+    ci=qt(0.975, N-1)*sd/sqrt(N),
+    ci_lower=avg_prop_looking-ci,
+    ci_upper=avg_prop_looking+ci
+  )
+
+
+p <- ggplot(filter(means_items, n>=12&t_norm>=-1000&t_norm<=4000), aes(x = t_norm, y = prop_looking,color=target_label)) + 
+  geom_line(alpha=0.5) + 
+  # geom_ribbon(aes(ymin = ci_lower, ymax = ci_upper, 
+  #                 fill = dataset_name), alpha = .5) +
+  # geom_smooth(data=average_across_items,
+  #             aes(y=avg_prop_looking,ymin = ci_lower, ymax = ci_upper),color="black",stat="identity")+
+  geom_smooth(color="black",se=F,method="gam")+
+  geom_hline(yintercept = .5, lty = 2) + 
+  geom_vline(xintercept = 0, lty = "solid") +
+  ylab("Proportion Target Looking") +
+  xlab("Time (msec)") +
+  theme_classic() +
+  scale_color_viridis_d() +
+  scale_fill_viridis_d() +
+  #facet_wrap(~apa_cite,nrow=4)+
+  facet_wrap(~dataset_name,nrow=5)+
+  theme(legend.position="none")+
+  theme(axis.text=element_text(size=10),
+        axis.title=element_text(size=16))+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5),strip.text.x = element_text(size = 6))+
+  scale_x_continuous(breaks=seq(-500,4000,500))+
+  scale_y_continuous(breaks=c(0,0.25,0.5,0.75,1),limits=c(0,1))
+p
+
+ggsave(here("figures","peekbank_item_vis_new.png"),plot=p,width=10,height=6,dpi=600)
+
 
