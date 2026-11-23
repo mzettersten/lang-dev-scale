@@ -124,7 +124,7 @@ p <- ggplot(filter(means_items, n>=12&t_norm>=-1000&t_norm<=4000), aes(x = t_nor
   theme(legend.position="none")+
   theme(axis.text=element_text(size=10),
         axis.title=element_text(size=16))+
-  theme(axis.text.x = element_text(angle = 45, vjust = 0.5),strip.text.x = element_text(size = 6))+
+  theme(axis.text.x = element_text(angle = 45, vjust = 0.5),strip.text.x = element_text(size = 5))+
   scale_x_continuous(breaks=seq(-500,4000,500))+
   scale_y_continuous(breaks=c(0,0.25,0.5,0.75,1),limits=c(0,1))
 p
